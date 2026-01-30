@@ -116,7 +116,7 @@ class KakaoBot:
             return ""
 
     def parse_last_message(self, full_log):
-        keywords = ["강화 성공", "강화 유지", "강화 파괴", "골드가 부족해", "판매 완료"] 
+        keywords = ["강화 성공", "강화 유지", "강화 파괴", "골드가 부족해", "검 판매"] 
         last_idx = -1
         found_keyword = None
         
@@ -206,13 +206,13 @@ class KakaoBot:
             status = "NO_GOLD"
             level = 0
             
-        elif found_keyword == "판매 완료":
+        elif found_keyword == "검 판매":
             status = "SELL_COMPLETE"
-            # Try to extract gold amount from message
-            # Pattern: "판매를 완료하여 XXX골드를 획득했습니다" or similar
-            gold_match = re.search(r'(\d+)골드를 획득', chunk)
+            # Pattern: "💶획득 골드: +189,726G"
+            gold_match = re.search(r'💶획득 골드:\s*\+([\d,]+)G', chunk)
             if gold_match:
-                gold_earned = int(gold_match.group(1))
+                gold_str = gold_match.group(1).replace(',', '')  # Remove commas
+                gold_earned = int(gold_str)
             level = 0  # After selling, we have no weapon
 
         return status, level, weapon_type, gold_earned, chunk
