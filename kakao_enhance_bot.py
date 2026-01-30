@@ -400,7 +400,7 @@ class BotGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("검 키우기 자동 봇")
-        self.root.geometry("500x700")
+        self.root.geometry("600x850")
         
         # Thread-safe logging and stats
         self.log_queue = queue.Queue()
@@ -524,7 +524,7 @@ class BotGUI:
         frame_log = tk.LabelFrame(main_frame, text="실행 로그", font=("Arial", 10))
         frame_log.pack(expand=True, fill="both", pady=(10, 0))
         
-        self.text_log = scrolledtext.ScrolledText(frame_log, state="disabled", height=10, font=("Consolas", 9))
+        self.text_log = scrolledtext.ScrolledText(frame_log, state="disabled", height=18, font=("Consolas", 9))
         self.text_log.pack(expand=True, fill="both", padx=5, pady=5)
         
         # Initial Log
