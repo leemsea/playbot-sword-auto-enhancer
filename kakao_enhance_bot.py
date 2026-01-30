@@ -178,9 +178,25 @@ class KakaoBot:
                 
         elif found_keyword == "강화 유지":
             status = "MAINTAIN"
-            match = re.search(r'『[^\[]+\[\+(\d+)\]', chunk)
-            if match:
-                level = int(match.group(1))
+            # Pattern: "『[+2] 검』의 레벨이 유지되었습니다" or "『[+2] 생명을 다루는 검』의 레벨이 유지되었습니다"
+            maintain_match = re.search(r'『\[(\+\d+)\]\s*(.+?)』', chunk)
+            if maintain_match:
+                level_str = maintain_match.group(1)  # "+2"
+                weapon_name = maintain_match.group(2).strip()  # "검" or "생명을 다루는 검"
+                level = int(level_str.replace('+', ''))
+                
+                # Determine weapon type from name
+                normal_weapons = ["검", "몽둥이", "막대"]
+                if any(weapon_name.endswith(nw) for nw in normal_weapons):
+                    weapon_type = "NORMAL"
+                else:
+                    weapon_type = "HIDDEN"
+            else:
+                # Fallback: try old pattern
+                match = re.search(r'『[^\[]+\[(\+\d+)\]', chunk)
+                if match:
+                    level_str = match.group(1)
+                    level = int(level_str.replace('+', ''))
             
         elif found_keyword == "강화 파괴":
             status = "DESTROY"
