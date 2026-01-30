@@ -210,11 +210,14 @@ class KakaoBot:
         time.sleep(1.0)
         
         logs = self.get_chat_logs()
+        self.log(f"[DEBUG check_initial_status] 복사된 로그 길이: {len(logs) if logs else 0}자")
+        
         if not logs:
             self.log("   ⚠️ 채팅 내역을 읽을 수 없습니다. 0강부터 시작합니다.")
             return
         
         status, level, weapon_type, gold_earned, chunk = self.parse_last_message(logs)
+        self.log(f"[DEBUG check_initial_status] 파싱 결과: status={status}, level={level}, weapon_type={weapon_type}")
         
         if status in ["SUCCESS", "MAINTAIN"] and level > 0:
             self.current_level = level
@@ -284,6 +287,10 @@ class KakaoBot:
                 self.send_message("/강화")
                 
                 # 2. Wait Phase
+                self.log("   (응답 대기 중...)")
+                time.sleep(5.0)
+                
+                start_wait = time.time()
                 got_new_reply = False
                 
                 current_level = 0
