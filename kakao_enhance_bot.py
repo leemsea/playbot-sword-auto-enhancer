@@ -99,11 +99,9 @@ class KakaoBot:
         pyautogui.mouseDown()
         time.sleep(0.2)
         
-        # 4. Press PageUp multiple times to select recent history
-        # (This simulates holding click and scrolling up/paging up)
-        for _ in range(3):
-            pyautogui.press('pageup')
-            time.sleep(0.1)
+        # 4. Press PageUp once to select recent history
+        pyautogui.press('pageup')
+        time.sleep(0.1)
             
         # 5. Release mouse (End Selection)
         pyautogui.mouseUp()
@@ -145,19 +143,18 @@ class KakaoBot:
         normal_weapons = ["검", "몽둥이", "막대"]
         
         # Look for weapon name patterns
-        # Look for weapon name patterns
-        # Case 1: Success message "⚔️획득 검: [+9] 혼돈의 쿠키 앤 크림"
+        # Case 1: Success message "⚔️획득 검: [+9] 생명을 잠식하는 검"
         # We need to capture the text AFTER the level tag
         weapon_match = re.search(r'⚔️획득\s*[^:]+:\s*\[\+\d+\]\s*(.+)', chunk)
         if weapon_match:
             weapon_name = weapon_match.group(1).strip()
-            # Check if it is EXACTLY one of the normal weapons
-            if weapon_name in normal_weapons:
+            # Check if weapon name ENDS WITH any normal weapon
+            if any(weapon_name.endswith(nw) for nw in normal_weapons):
                 weapon_type = "NORMAL"
             else:
                 weapon_type = "HIDDEN"
         else:
-            # Case 2: Maintain message "『[+9] 혼돈의 쿠키 앤 크림" (This format might be tricky)
+            # Case 2: Maintain message "『[+9] 생명을 잠식하는 검"
             # Or standard format: "『[+9] 검"
             # Let's try to capture text after [+N]
             weapon_match = re.search(r'『\[\+\d+\]\s*(.+)', chunk)
@@ -166,7 +163,8 @@ class KakaoBot:
                 # Remove trailing brackets if any (sometimes happens with copy)
                 weapon_name = weapon_name.split('\n')[0].strip() 
                 
-                if weapon_name in normal_weapons:
+                # Check if weapon name ENDS WITH any normal weapon
+                if any(weapon_name.endswith(nw) for nw in normal_weapons):
                     weapon_type = "NORMAL"
                 else:
                     weapon_type = "HIDDEN"
