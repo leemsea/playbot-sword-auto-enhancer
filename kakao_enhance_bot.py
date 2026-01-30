@@ -378,7 +378,10 @@ class KakaoBot:
                         pass 
 
                     elif current_status == "MAINTAIN":
-                        self.log("   💦 유지. 재시도...")
+                        # CRITICAL: Update state even on MAINTAIN!
+                        self.current_level = current_level
+                        self.current_weapon_type = current_weapon_type
+                        self.log(f"   💦 유지. 재시도... (현재 레벨: +{current_level})")
                         
                     elif current_status == "DESTROY":
                         self.log("   💥 파괴. 다시 시작...")
