@@ -86,19 +86,28 @@ class KakaoBot:
             return ""
             
         self.focus_and_click(self.history_pos)
+        time.sleep(0.2)
         
-        # New approach: Use keyboard selection (Shift+PageUp)
-        # 1. Go to bottom
+        # Method: Click and HOLD, then PageUp while holding
+        # 1. Go to end first
         pyautogui.press('end')
         time.sleep(0.1)
         
-        # 2. Select upward using Shift+PageUp (more reliable than mouse drag)
-        pyautogui.hotkey('shift', 'pageup')
+        # 2. Press and HOLD mouse button (don't release!)
+        pyautogui.mouseDown()
+        time.sleep(0.3)  # Wait to ensure mouse is held
+        
+        # 3. While holding, press PageUp to select upwards
+        pyautogui.press('pageup')
         time.sleep(0.2)
         
-        # 3. Copy
-        pyautogui.hotkey('ctrl', 'c')
+        # 4. Release mouse
+        pyautogui.mouseUp()
         time.sleep(0.1)
+        
+        # 5. Copy
+        pyautogui.hotkey('ctrl', 'c')
+        time.sleep(0.2)
         
         try:
             return pyperclip.paste()
