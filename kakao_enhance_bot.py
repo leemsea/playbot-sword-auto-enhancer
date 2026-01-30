@@ -74,16 +74,12 @@ class KakaoBot:
         # Assuming text is like "/강화" or "/판매"
         pyperclip.copy(text)
         pyautogui.hotkey('ctrl', 'v')
+        time.sleep(0.2) # Wait for paste
+        
+        # Press Enter twice to be safe (handles slash command popup if any)
+        pyautogui.press('enter')
         time.sleep(0.1)
         pyautogui.press('enter')
-        # Just one enter is usually enough if it's a slash command pasted
-        # But user mentioned "Enter twice" might be safer or needed for some contexts
-        # Let's add a small delay and another Enter just in case, or stick to one if user said "paste without space is fine"
-        # User said: "paste '/강화' (without trailing space) is fine"
-        # Let's try one enter first. If it fails, user can report.
-        # Actually user said: "/강화 ... enter twice" OR "paste ... also fine".
-        # Let's do Enter once. 
-        time.sleep(0.1)
 
     def get_chat_logs(self):
         if not self.history_pos:
