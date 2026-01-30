@@ -40,7 +40,11 @@ class KakaoBot:
         if self.log_callback:
             self.log_callback(message)
         else:
-            print(message)
+            try:
+                print(message)
+            except UnicodeEncodeError:
+                # Fallback for Windows consoles that can't handle emojis
+                print(message.encode('cp949', errors='ignore').decode('cp949'))
 
     def set_coordinates(self, history_pos, input_pos):
         self.history_pos = history_pos
@@ -66,29 +70,20 @@ class KakaoBot:
         pyautogui.press('backspace')
         time.sleep(0.1)
         
-        # Determine if it's a command requiring @mention
-        if text.startswith("@플레이봇"):
-            # Type @플레이봇 using clipboard
-            pyperclip.copy("@플레이봇")
-            pyautogui.hotkey('ctrl', 'v')
-            
-            # Wait for dropdown
-            time.sleep(DROPDOWN_WAIT)
-            pyautogui.press('enter')
-            time.sleep(0.2)
-            
-            # Type the rest if any (e.g. " 강화", " 판매")
-            rest = text[len("@플레이봇"):]
-            if rest:
-                pyperclip.copy(rest)
-                pyautogui.hotkey('ctrl', 'v')
-        else:
-            # Normal message
-            pyperclip.copy(text)
-            pyautogui.hotkey('ctrl', 'v')
-
+        # Use simple paste for everything (Slash commands work efficiently)
+        # Assuming text is like "/강화" or "/판매"
+        pyperclip.copy(text)
+        pyautogui.hotkey('ctrl', 'v')
         time.sleep(0.1)
         pyautogui.press('enter')
+        # Just one enter is usually enough if it's a slash command pasted
+        # But user mentioned "Enter twice" might be safer or needed for some contexts
+        # Let's add a small delay and another Enter just in case, or stick to one if user said "paste without space is fine"
+        # User said: "paste '/강화' (without trailing space) is fine"
+        # Let's try one enter first. If it fails, user can report.
+        # Actually user said: "/강화 ... enter twice" OR "paste ... also fine".
+        # Let's do Enter once. 
+        time.sleep(0.1)
 
     def get_chat_logs(self):
         if not self.history_pos:
@@ -96,7 +91,27 @@ class KakaoBot:
             
         self.focus_and_click(self.history_pos)
         
-        pyautogui.hotkey('ctrl', 'a')
+        # Optimize copy: End -> MouseDown -> PageUp -> MouseUp -> Copy
+        # 1. Ensure focus and at bottom
+        pyautogui.press('end')
+        time.sleep(0.1)
+        
+        # 2. Position mouse at bottom-right (user defined content area)
+        pyautogui.moveTo(self.history_pos)
+        
+        # 3. Hold mouse down (Start Selection)
+        pyautogui.mouseDown()
+        time.sleep(0.2)
+        
+        # 4. Press PageUp multiple times to select recent history
+        # (This simulates holding click and scrolling up/paging up)
+        for _ in range(3):
+            pyautogui.press('pageup')
+            time.sleep(0.1)
+            
+        # 5. Release mouse (End Selection)
+        pyautogui.mouseUp()
+        
         time.sleep(0.1)
         pyautogui.hotkey('ctrl', 'c')
         time.sleep(0.1)
@@ -134,19 +149,28 @@ class KakaoBot:
         normal_weapons = ["검", "몽둥이", "막대"]
         
         # Look for weapon name patterns
-        weapon_match = re.search(r'⚔️획득\s+([^:：]+)[：:]', chunk)
+        # Look for weapon name patterns
+        # Case 1: Success message "⚔️획득 검: [+9] 혼돈의 쿠키 앤 크림"
+        # We need to capture the text AFTER the level tag
+        weapon_match = re.search(r'⚔️획득\s*[^:]+:\s*\[\+\d+\]\s*(.+)', chunk)
         if weapon_match:
             weapon_name = weapon_match.group(1).strip()
-            if any(nw in weapon_name for nw in normal_weapons):
+            # Check if it is EXACTLY one of the normal weapons
+            if weapon_name in normal_weapons:
                 weapon_type = "NORMAL"
             else:
                 weapon_type = "HIDDEN"
         else:
-            # Try alternate pattern from 강화 유지
-            weapon_match = re.search(r'『([^\[]+)\[', chunk)
+            # Case 2: Maintain message "『[+9] 혼돈의 쿠키 앤 크림" (This format might be tricky)
+            # Or standard format: "『[+9] 검"
+            # Let's try to capture text after [+N]
+            weapon_match = re.search(r'『\[\+\d+\]\s*(.+)', chunk)
             if weapon_match:
                 weapon_name = weapon_match.group(1).strip()
-                if any(nw in weapon_name for nw in normal_weapons):
+                # Remove trailing brackets if any (sometimes happens with copy)
+                weapon_name = weapon_name.split('\n')[0].strip() 
+                
+                if weapon_name in normal_weapons:
                     weapon_type = "NORMAL"
                 else:
                     weapon_type = "HIDDEN"
@@ -221,7 +245,7 @@ class KakaoBot:
             try:
                 # 1. Action Phase
                 self.log(">> 강화 명령 전송...")
-                self.send_message("@플레이봇 강화")
+                self.send_message("/강화")
                 
                 # 2. Wait Phase
                 self.log("   (응답 대기 중...)")
@@ -287,7 +311,9 @@ class KakaoBot:
                             
                             if should_sell:
                                 time.sleep(2.0)
-                                self.send_message("@플레이봇 판매")
+                            if should_sell:
+                                time.sleep(2.0)
+                                self.send_message("/판매")
                                 self.log("   (판매 명령 전송됨)")
                                 
                                 # Wait for sell confirmation
@@ -351,7 +377,7 @@ class CalibrationWindow:
         self.step = 1
         self.history_pos = None
         
-        self.label = tk.Label(self.top, text="[단계 1]\n\n채팅 내역(대화창 중앙) 위에\n마우스를 올리고\nEnter 키를 누르세요.", font=("Arial", 12))
+        self.label = tk.Label(self.top, text="[단계 1]\n\n채팅 내역(대화창 오른쪽 아래)\n마우스를 올리고\nEnter 키를 누르세요.", font=("Arial", 12))
         self.label.pack(expand=True, fill="both", padx=20, pady=20)
         
         self.top.bind('<Return>', self.on_enter)
@@ -395,8 +421,8 @@ class BotGUI:
         main_frame.pack(expand=True, fill="both")
 
         # Header
-        tk.Label(main_frame, text="검 키우기 자동 봇", font=font_title).pack(pady=(0, 5))
-        tk.Label(main_frame, text="초등학생도 쉽게 쓰는 자동 강화!", font=font_normal, fg="gray").pack(pady=(0, 15))
+        tk.Label(main_frame, text="검 키우기 자동 봇", font=font_title).pack(pady=(0, 15))
+        # tk.Label(main_frame, text="초등학생도 쉽게 쓰는 자동 강화!", font=font_normal, fg="gray").pack(pady=(0, 15))
 
         # 1. Settings Frame
         frame_settings = tk.LabelFrame(main_frame, text="설정", font=("Arial", 10, "bold"), padx=10, pady=10)
@@ -455,6 +481,10 @@ class BotGUI:
         self.btn_calib = tk.Button(frame_controls, text="1. 좌표 설정 (필수)", command=self.start_calibration, 
                                    bg="#A0D8EF", fg="black", font=("Arial", 11, "bold"), height=2)
         self.btn_calib.pack(fill="x", pady=5)
+
+        self.btn_test_copy = tk.Button(frame_controls, text="테스트: 복사 확인", command=self.test_copy,
+                                      bg="#E0E0E0", fg="black", font=("Arial", 9))
+        self.btn_test_copy.pack(fill="x", pady=(0, 5))
         
         frame_btns = tk.Frame(frame_controls)
         frame_btns.pack(fill="x", pady=5)
@@ -582,6 +612,24 @@ class BotGUI:
             self.spin_goal.config(state="normal")
             self.scale_normal.config(state="normal" if self.var_enable_sell.get() else "disabled")
             self.scale_hidden.config(state="normal" if self.var_enable_sell.get() else "disabled")
+            self.btn_test_copy.config(state="normal")
+
+    def test_copy(self):
+        """Test copy logic on demand."""
+        if not self.bot.history_pos:
+            messagebox.showwarning("주의", "좌표 설정이 필요합니다.")
+            return
+
+        self.queue_log("[테스트] 채팅 로그 복사 시도 중...")
+        logs = self.bot.get_chat_logs()
+        if logs:
+            self.queue_log(f"[테스트 성공] {len(logs)} 글자 복사됨.")
+            # Show preview (Last 500 chars to be safe, but focus on content)
+            preview = logs[-500:] if len(logs) > 500 else logs
+            messagebox.showinfo("복사 테스트 결과", f"성공적으로 복사했습니다! (총 {len(logs)}자)\n\n--- [마지막 내용을 확인하세요] ---\n{preview}")
+        else:
+            self.queue_log("[테스트 실패] 복사된 내용이 없습니다.")
+            messagebox.showerror("오류", "복사된 내용이 없습니다.\n좌표를 다시 확인해주세요.")
 
 def main():
     root = tk.Tk()
