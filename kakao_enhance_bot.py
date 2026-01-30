@@ -87,26 +87,16 @@ class KakaoBot:
             
         self.focus_and_click(self.history_pos)
         
-        # Optimize copy: End -> MouseDown -> PageUp -> MouseUp -> Copy
-        # 1. Ensure focus and at bottom
+        # New approach: Use keyboard selection (Shift+PageUp)
+        # 1. Go to bottom
         pyautogui.press('end')
         time.sleep(0.1)
         
-        # 2. Position mouse at bottom-right (user defined content area)
-        pyautogui.moveTo(self.history_pos)
-        
-        # 3. Hold mouse down (Start Selection)
-        pyautogui.mouseDown()
+        # 2. Select upward using Shift+PageUp (more reliable than mouse drag)
+        pyautogui.hotkey('shift', 'pageup')
         time.sleep(0.2)
         
-        # 4. Press PageUp once to select recent history
-        pyautogui.press('pageup')
-        time.sleep(0.1)
-            
-        # 5. Release mouse (End Selection)
-        pyautogui.mouseUp()
-        
-        time.sleep(0.1)
+        # 3. Copy
         pyautogui.hotkey('ctrl', 'c')
         time.sleep(0.1)
         
@@ -203,10 +193,15 @@ class KakaoBot:
         return status, level, weapon_type, gold_earned, chunk
 
     def check_initial_status(self):
-        """Check current status from chat before starting the loop."""
+        """Check current status using /프로필 command before starting the loop."""
         self.log("현재 상태 확인 중...")
-        time.sleep(1.0)
+        self.log(">> /프로필 명령 전송...")
         
+        # Send profile command
+        self.send_message("/프로필")
+        time.sleep(3.0)  # Wait for response
+        
+        # Get chat logs
         logs = self.get_chat_logs()
         self.log(f"[DEBUG check_initial_status] 복사된 로그 길이: {len(logs) if logs else 0}자")
         
@@ -214,16 +209,33 @@ class KakaoBot:
             self.log("   ⚠️ 채팅 내역을 읽을 수 없습니다. 0강부터 시작합니다.")
             return
         
-        status, level, weapon_type, gold_earned, chunk = self.parse_last_message(logs)
-        self.log(f"[DEBUG check_initial_status] 파싱 결과: status={status}, level={level}, weapon_type={weapon_type}")
+        # Parse profile response: "● 보유 검: [+7] 생명의 정수를 빚어내는 검"
+        profile_match = re.search(r'● 보유 검:\s*\[(\+\d+)\]\s*(.+)', logs)
         
-        if status in ["SUCCESS", "MAINTAIN"] and level > 0:
+        if profile_match:
+            level_str = profile_match.group(1)  # "+7"
+            weapon_name = profile_match.group(2).strip()  # "생명의 정수를 빚어내는 검"
+            # Remove any trailing newlines or description text
+            weapon_name = weapon_name.split('\n')[0].strip()
+            
+            level = int(level_str.replace('+', ''))
+            
+            # Determine weapon type
+            normal_weapons = ["검", "몽둥이", "막대"]
+            if any(weapon_name.endswith(nw) for nw in normal_weapons):
+                weapon_type = "NORMAL"
+            else:
+                weapon_type = "HIDDEN"
+            
             self.current_level = level
             self.current_weapon_type = weapon_type
-            weapon_text = "일반" if weapon_type == "NORMAL" else ("히든" if weapon_type == "HIDDEN" else "알 수 없는")
-            self.log(f"   ✅ 현재 상태: {weapon_text} 무기 +{level}")
+            
+            weapon_text = "일반" if weapon_type == "NORMAL" else "히든"
+            self.log(f"   ✅ 현재 상태: {weapon_text} 무기 +{level} ({weapon_name})")
+            self.log(f"[DEBUG] weapon_name='{weapon_name}', ends_with_check={[weapon_name.endswith(nw) for nw in normal_weapons]}")
         else:
             self.log("   ℹ️ 현재 강화된 무기가 없습니다. 0강부터 시작합니다.")
+            self.log(f"[DEBUG] 프로필 파싱 실패. 로그 일부: {logs[:200]}")
 
     def run_loop(self):
         self.running = True
