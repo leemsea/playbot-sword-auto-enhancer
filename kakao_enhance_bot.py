@@ -139,7 +139,7 @@ class KakaoBot:
         gold_earned = 0
         
         # Detect weapon type
-        normal_weapons = ["검", "몽둥이", "막대", "망치"]
+        normal_weapons = ["검", "몽둥이", "막대", "망치", "도끼"]
         
         # Look for weapon name patterns
         # Case 1: Success message "⚔️획득 검: [+9] 생명을 잠식하는 검"
