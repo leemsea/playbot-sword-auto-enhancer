@@ -239,15 +239,51 @@ class KakaoBot:
         
         while self.running and not self.stop_event.is_set():
             try:
+                # 0. Pre-Check Phase: Should I sell or stop already?
+                # This prevents "Enhancing a +11 item" if we started with it.
+                self.log(f"[DEBUG Pre-Check] enable_sell={self.enable_sell}, current_level={self.current_level}, current_weapon_type={self.current_weapon_type}, normal_sell={self.normal_sell_level}, hidden_sell={self.hidden_sell_level}")
+                
+                if self.enable_sell:
+                    should_sell = False
+                    if self.current_weapon_type == "NORMAL" and self.current_level >= self.normal_sell_level:
+                        should_sell = True
+                        self.log(f"   [상태 체크] 일반 무기 {self.current_level}강 (목표 {self.normal_sell_level}강) -> 판매 대상!")
+                    elif self.current_weapon_type == "HIDDEN" and self.current_level >= self.hidden_sell_level:
+                        should_sell = True
+                        self.log(f"   [상태 체크] 히든 무기 {self.current_level}강 (목표 {self.hidden_sell_level}강) -> 판매 대상!")
+                    else:
+                        self.log(f"[DEBUG] 판매 조건 미충족 - Level: {self.current_level}, Type: {self.current_weapon_type}")
+                    
+                    if should_sell:
+                        self.log(">> 판매 조건 충족! 판매를 시도합니다.")
+                        # Call execution block for selling
+                        # To avoid duplication, we will fall through to logic or duplicate the sell block here.
+                        # Since we want to act immediately, we will execute sell here.
+                        time.sleep(1.0)
+                        self.send_message("/판매")
+                        self.log("   (판매 명령 전송됨)")
+                        
+                        time.sleep(3.0)
+                        sell_logs = self.get_chat_logs()
+                        sell_status, _, _, sell_gold, _ = self.parse_last_message(sell_logs)
+                        
+                        if sell_status == "SELL_COMPLETE" and sell_gold > 0:
+                            self.sell_count += 1
+                            self.total_gold_earned += sell_gold
+                            self.log(f"   💵 판매 완료! {sell_gold}골드 획득 (총 {self.sell_count}회 판매, {self.total_gold_earned}골드 획득)")
+                            if self.stats_callback:
+                                self.stats_callback(self.sell_count, self.total_gold_earned)
+                        
+                        self.current_level = 0
+                        self.current_weapon_type = "UNKNOWN"
+                        time.sleep(DELAY_BETWEEN_COMMANDS)
+                        continue
+
                 # 1. Action Phase
-                self.log(">> 강화 명령 전송...")
+                self.log(f">> 강화 명령 전송... (현재: +{self.current_level} {self.current_weapon_type})")
                 self.send_message("/강화")
                 
                 # 2. Wait Phase
-                self.log("   (응답 대기 중...)")
-                time.sleep(5.0)
-                
-                start_wait = time.time()
                 got_new_reply = False
                 
                 current_level = 0
@@ -295,39 +331,9 @@ class KakaoBot:
                             self.running = False
                             break
 
-                        # Check Sell Condition
-                        if self.enable_sell:
-                            should_sell = False
-                            if current_weapon_type == "NORMAL" and current_level >= self.normal_sell_level:
-                                should_sell = True
-                                self.log(f"   💰 일반 무기 {current_level}강 달성! 판매합니다...")
-                            elif current_weapon_type == "HIDDEN" and current_level >= self.hidden_sell_level:
-                                should_sell = True
-                                self.log(f"   💰 히든 무기 {current_level}강 달성! 판매합니다...")
-                            
-                            if should_sell:
-                                time.sleep(2.0)
-                            if should_sell:
-                                time.sleep(2.0)
-                                self.send_message("/판매")
-                                self.log("   (판매 명령 전송됨)")
-                                
-                                # Wait for sell confirmation
-                                time.sleep(3.0)
-                                sell_logs = self.get_chat_logs()
-                                sell_status, _, _, sell_gold, _ = self.parse_last_message(sell_logs)
-                                
-                                if sell_status == "SELL_COMPLETE" and sell_gold > 0:
-                                    self.sell_count += 1
-                                    self.total_gold_earned += sell_gold
-                                    self.log(f"   💵 판매 완료! {sell_gold}골드 획득 (총 {self.sell_count}회 판매, {self.total_gold_earned}골드 획득)")
-                                    if self.stats_callback:
-                                        self.stats_callback(self.sell_count, self.total_gold_earned)
-                                
-                                self.current_level = 0
-                                self.current_weapon_type = "UNKNOWN"
-                                time.sleep(DELAY_BETWEEN_COMMANDS)
-                                continue
+                        # Check Sell Condition (Post-Enhance Step Removed - moved to Pre-Check)
+                        # Just update state and loop; Pre-Check will handle selling on next iteration
+                        pass 
 
                     elif current_status == "MAINTAIN":
                         self.log("   💦 유지. 재시도...")
