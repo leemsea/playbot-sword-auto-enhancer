@@ -652,6 +652,7 @@ class BotGUI:
             self.btn_stop.config(state="disabled")
             
             # Re-enable controls
+            self.btn_start.config(state="normal")  # Re-enable start button
             self.btn_calib.config(state="normal")
             self.spin_goal.config(state="normal")
             self.scale_normal.config(state="normal" if self.var_enable_sell.get() else "disabled")
